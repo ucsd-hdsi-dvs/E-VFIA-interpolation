@@ -128,6 +128,7 @@ def print_log(epoch, num_epochs, one_epoch_time, oup_pnsr, oup_ssim, Lr):
     print('({0:.0f}s) Epoch [{1}/{2}], Val_PSNR:{3:.2f}, Val_SSIM:{4:.4f}'
           .format(one_epoch_time, epoch, num_epochs, oup_pnsr, oup_ssim))
     # write training log
+    os.makedirs('training_log', exist_ok=True)
     with open('training_log/train_log_0.txt', 'a') as f:
         print(
             'Date: {0}s, Time_Cost: {1:.0f}s, Epoch: [{2}/{3}], Val_PSNR:{4:.2f}, Val_SSIM:{5:.4f}, Lr:{6}'
