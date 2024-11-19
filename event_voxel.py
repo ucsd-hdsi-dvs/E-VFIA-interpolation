@@ -1,18 +1,11 @@
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-# import glob
 from torchvision import transforms
-import numpy as np  
 from PIL import Image
 
 from common import representation
 from common import event
-from labits import calc_labits
-
-
-# import random
-
 
 class EventVoxel(Dataset):
     def __init__(self, data_root, is_hsergb, is_training, is_validation, number_of_time_bins, number_of_skips=1):
@@ -94,34 +87,6 @@ class EventVoxel(Dataset):
             hsergb=self.is_hsergb,
         )
 
-        # Convert timestamps to [0, nb_of_time_bins] range.
-        duration = events_left.duration()
-        start_timestamp = events_left.start_time()
-        features = torch.from_numpy(events_left._features)
-        xs = features[:, event.X_COLUMN].int()
-        ys = features[:, event.Y_COLUMN].int()
-        ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp).float()
-        t_span = ts[-1] - ts[0]
-        t_range = t_span / (self.number_of_time_bins+1)
-        
-        h=events_left._image_height,
-        w=events_left._image_width,
-
-        xs = np.array(xs) if not isinstance(xs, np.ndarray) else xs
-        ys = np.array(ys) if not isinstance(ys, np.ndarray) else ys
-        ts = np.array(ts) if not isinstance(ts, np.ndarray) else ts
-        ts = ts - ts[0]
-        
-        # mask based on xs and ys
-        mask = (xs >= 0) & (xs < w[0]) & (ys >= 0) & (ys < h[0])
-        xs = xs[mask]
-        ys = ys[mask]
-        ts = ts[mask]
-        
-        t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
-        voxel_left = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
-        voxel_left = torch.from_numpy(voxel_left).float()
-
         events_right = event.EventSequence.from_npz_files(
             list_of_filenames=list_of_events[3:],
             image_height=H,
@@ -130,35 +95,11 @@ class EventVoxel(Dataset):
         )
         events_right.reverse()
 
-        duration = events_right.duration()
-        start_timestamp = events_right.start_time()
-        features = torch.from_numpy(events_right._features)
-        xs = features[:, event.X_COLUMN].int()
-        ys = features[:, event.Y_COLUMN].int()
-        ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp).float() #) * (self.number_of_time_bins - 1) / duration*10
-        t_span = ts[-1] - ts[0]
-        t_range = t_span / (self.number_of_time_bins+1)
-        
-        h=events_right._image_height,
-        w=events_right._image_width,
-
-        xs = np.array(xs) if not isinstance(xs, np.ndarray) else xs
-        ys = np.array(ys) if not isinstance(ys, np.ndarray) else ys
-        ts = np.array(ts) if not isinstance(ts, np.ndarray) else ts
-        ts = ts - ts[0]
-        
-        # mask based on xs and ys
-        mask = (xs >= 0) & (xs < w[0]) & (ys >= 0) & (ys < h[0])
-        xs = xs[mask]
-        ys = ys[mask]
-        ts = ts[mask]
-        
-        t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
-        voxel_right = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
-        voxel_right = torch.from_numpy(voxel_right).float()
+        labits_left = representation.to_labits(events_left, nb_of_time_bins=self.number_of_time_bins)
+        labits_right = representation.to_labits(events_right, nb_of_time_bins=self.number_of_time_bins)
 
         # Concatenate the two voxel grids
-        voxel = torch.cat((voxel_left, voxel_right))
+        labits = torch.cat((labits_left, labits_right))
 
         images = [Image.open(pth) for pth in list_of_images]
 
@@ -167,16 +108,16 @@ class EventVoxel(Dataset):
         images = [T(img_) for img_ in images]
         gt = T(gt)
 
-        voxel = torch.reshape(voxel, (4, self.number_of_time_bins // 2, H, W))  # reshape to have a 4x3xHxW tensor
+        labits = torch.reshape(labits, (4, self.number_of_time_bins // 2, H, W))  # reshape to have a 4x3xHxW tensor
         #V = transforms.Compose([transforms.ToPILImage(), transforms.Resize((256, 256)),
         # transforms.ToTensor()])  # Voxel grid transforms for 256 #TODO random crop size is subject to change.
 
-        voxel = torch.nn.functional.interpolate(voxel, size=(256, 256))
+        labits = torch.nn.functional.interpolate(labits, size=(256, 256))
         # V = transforms.Compose([transforms.ToTensor()])  # Voxel grid transforms for 256 #TODO random crop size is subject to change.
 
         #voxel = [V(vox_) for vox_ in voxel[:]]
-        voxel = list(voxel)
-        return images, voxel, gt ,gt_path # note that all three are torch tensor
+        labits = list(labits)
+        return images, labits, gt ,gt_path # note that all three are torch tensor
 
     def __len__(self):
         if self.is_training:

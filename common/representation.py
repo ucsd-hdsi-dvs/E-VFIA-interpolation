@@ -19,8 +19,38 @@ from wandb import visualize
 from common import event #Be careful to have event.py in the same folder with representation.py / be sure the subdirectory named common.
 
 import torch #Instead of having th as  in the original code torch notation prefered.
+import numpy as np
+from labits import calc_labits
 
-import math
+def to_labits(event_sequence, nb_of_time_bins=5):
+    # Convert timestamps to [0, nb_of_time_bins] range.
+    duration = event_sequence.duration()
+    start_timestamp = event_sequence.start_time()
+    features = torch.from_numpy(event_sequence._features)
+    xs = features[:, event.X_COLUMN].int()
+    ys = features[:, event.Y_COLUMN].int()
+    ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp).float()
+    t_range = duration / (nb_of_time_bins+1)
+    
+    h=event_sequence._image_height
+    w=event_sequence._image_width
+
+    xs = np.array(xs) if not isinstance(xs, np.ndarray) else xs
+    ys = np.array(ys) if not isinstance(ys, np.ndarray) else ys
+    ts = np.array(ts) if not isinstance(ts, np.ndarray) else ts
+    ts = ts - ts[0]
+    
+    # mask based on xs and ys
+    mask = (xs >= 0) & (xs < w) & (ys >= 0) & (ys < h)
+    xs = xs[mask]
+    ys = ys[mask]
+    ts = ts[mask]
+    
+    t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
+    labits = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h,w), t_range=t_range, num_bins=nb_of_time_bins+1, norm=True)[1:]
+    labits = torch.from_numpy(labits).float()
+    return labits
+
 
 
 def to_voxel_grid(event_sequence, nb_of_time_bins=5, remapping_maps=None):
