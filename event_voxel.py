@@ -118,7 +118,7 @@ class EventVoxel(Dataset):
         y = np.array(y) if not isinstance(y, np.ndarray) else y
         t = np.array(t) if not isinstance(t, np.ndarray) else t
         
-        t_range=int(round(t_range))
+        t_range=torch.round(t_range).int()
         voxel_left = calc_labits(xs=x, ys=y, ts=t, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         
         
@@ -153,7 +153,7 @@ class EventVoxel(Dataset):
         x = np.array(x) if not isinstance(x, np.ndarray) else x
         y = np.array(y) if not isinstance(y, np.ndarray) else y
         t = np.array(t) if not isinstance(t, np.ndarray) else t
-        t_range=int(round(t_range))
+        t_range=torch.round(t_range).int()
         voxel_right = calc_labits(xs=x, ys=y, ts=t, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         
 
