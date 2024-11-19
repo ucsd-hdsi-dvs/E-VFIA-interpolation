@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 # import glob
 from torchvision import transforms
-
+import numpy as np  
 from PIL import Image
 
 from common import representation
@@ -106,14 +106,20 @@ class EventVoxel(Dataset):
         x = features[:, event.X_COLUMN]
         y = features[:, event.Y_COLUMN]
         polarity = features[:, event.POLARITY_COLUMN].float()
-        t = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1) / duration
+        t = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1)/ duration * 10
         t = t.float()
         t_span = t[-1] - t[0]
         t_range = t_span / (self.number_of_time_bins+1)
         
         h=events_left._image_height,
         w=events_left._image_width,
-        voxel_left = calc_labits(xs=x, ys=y, ts=t, framesize=(h,w), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
+
+        x = np.array(x) if not isinstance(x, np.ndarray) else x
+        y = np.array(y) if not isinstance(y, np.ndarray) else y
+        t = np.array(t) if not isinstance(t, np.ndarray) else t
+        
+        t_range=int(round(t_range))
+        voxel_left = calc_labits(xs=x, ys=y, ts=t, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         
         
         
@@ -136,14 +142,19 @@ class EventVoxel(Dataset):
         x = features[:, event.X_COLUMN]
         y = features[:, event.Y_COLUMN]
         polarity = features[:, event.POLARITY_COLUMN].float()
-        t = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1) / duration
+        t = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1) / duration*10
         t = t.float()
         t_span = t[-1] - t[0]
         t_range = t_span / (self.number_of_time_bins+1)
         
         h=events_right._image_height,
         w=events_right._image_width,
-        voxel_right = calc_labits(xs=x, ys=y, ts=t, framesize=(h,w), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
+
+        x = np.array(x) if not isinstance(x, np.ndarray) else x
+        y = np.array(y) if not isinstance(y, np.ndarray) else y
+        t = np.array(t) if not isinstance(t, np.ndarray) else t
+        t_range=int(round(t_range))
+        voxel_right = calc_labits(xs=x, ys=y, ts=t, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         
 
         voxel = torch.cat((voxel_left, voxel_right))
