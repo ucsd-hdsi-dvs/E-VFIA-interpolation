@@ -88,7 +88,7 @@ class EventVoxel(Dataset):
         gt = Image.open(gt_path)  # since events are sparse an image is fetched in order to have HxW information.
 
         W, H = gt.size
-        print("H:", H, "W:", W)
+        # print("H:", H, "W:", W)
 
         events_left = event.EventSequence.from_npz_files(
             list_of_filenames=list_of_events[:3],
@@ -106,13 +106,10 @@ class EventVoxel(Dataset):
         features = torch.from_numpy(events_left._features)
         xs = features[:, event.X_COLUMN].int()
         ys = features[:, event.Y_COLUMN].int()
-        # polarity = features[:, event.POLARITY_COLUMN].float()
-        # ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1)/ duration * 10
         ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp).float()
-        # ts = ts.float()
         t_span = ts[-1] - ts[0]
         t_range = t_span / (self.number_of_time_bins+1)
-        print("t_range:", t_range, "t_span:", t_span, "duration:", duration, "start_timestamp:", start_timestamp)
+        # print("t_range:", t_range, "t_span:", t_span, "duration:", duration, "start_timestamp:", start_timestamp)
         
         h=events_left._image_height,
         w=events_left._image_width,
@@ -122,14 +119,21 @@ class EventVoxel(Dataset):
         ts = np.array(ts) if not isinstance(ts, np.ndarray) else ts
         ts = ts - ts[0]
         
+        # mask based on xs and ys
+        mask = (xs >= 0) & (xs < w[0]) & (ys >= 0) & (ys < h[0])
+        xs = xs[mask]
+        ys = ys[mask]
+        ts = ts[mask]
+        
         t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
         # round t_range and change it to int
         t_range=int(np.round(t_range))
-        print('t_range:', t_range)
-        print("Framesize:", (h[0],w[0]), "max xs:", np.max(xs), "max ys:", np.max(ys), "max ts:", np.max(ts))
-        print("max features[:, event.X_COLUMN]:", features[:, event.X_COLUMN].max(), "max features[:, event.Y_COLUMN]:", features[:, event.Y_COLUMN].max())
-        print(h, w)
+        # print('t_range:', t_range)
+        # print("Framesize:", (h[0],w[0]), "max xs:", np.max(xs), "max ys:", np.max(ys), "max ts:", np.max(ts))
+        # print("max features[:, event.X_COLUMN]:", features[:, event.X_COLUMN].max(), "max features[:, event.Y_COLUMN]:", features[:, event.Y_COLUMN].max())
+        # print(h, w)
         voxel_left = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
+        voxel_left = torch.from_numpy(voxel_left).float()
         
         
         
@@ -163,10 +167,19 @@ class EventVoxel(Dataset):
         xs = np.array(xs) if not isinstance(xs, np.ndarray) else xs
         ys = np.array(ys) if not isinstance(ys, np.ndarray) else ys
         ts = np.array(ts) if not isinstance(ts, np.ndarray) else ts
+        ts = ts - ts[0]
+        
+        # mask based on xs and ys
+        mask = (xs >= 0) & (xs < w[0]) & (ys >= 0) & (ys < h[0])
+        xs = xs[mask]
+        ys = ys[mask]
+        ts = ts[mask]
+        
         t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
         # round t_range and change it to int
         t_range=int(np.round(t_range))
         voxel_right = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
+        voxel_right = torch.from_numpy(voxel_right).float()
         
 
         voxel = torch.cat((voxel_left, voxel_right))
