@@ -83,12 +83,9 @@ class EventVoxel(Dataset):
         gt_path = raw_data[4]
         list_of_events = raw_data[5:]
 
-        # the_pair = random.randint(2, len(list_of_events)-3) #Since the 5 image 4 files of events are selected last 2 and first 2 can not be the ground truth image ( center image to be predicted )
-
         gt = Image.open(gt_path)  # since events are sparse an image is fetched in order to have HxW information.
 
         W, H = gt.size
-        # print("H:", H, "W:", W)
 
         events_left = event.EventSequence.from_npz_files(
             list_of_filenames=list_of_events[:3],
@@ -97,9 +94,6 @@ class EventVoxel(Dataset):
             hsergb=self.is_hsergb,
         )
 
-        # our modification  
-        # voxel_left = representation.to_voxel_grid(events_left, nb_of_time_bins=self.number_of_time_bins)
-        
         # Convert timestamps to [0, nb_of_time_bins] range.
         duration = events_left.duration()
         start_timestamp = events_left.start_time()
@@ -109,7 +103,6 @@ class EventVoxel(Dataset):
         ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp).float()
         t_span = ts[-1] - ts[0]
         t_range = t_span / (self.number_of_time_bins+1)
-        # print("t_range:", t_range, "t_span:", t_span, "duration:", duration, "start_timestamp:", start_timestamp)
         
         h=events_left._image_height,
         w=events_left._image_width,
@@ -126,17 +119,8 @@ class EventVoxel(Dataset):
         ts = ts[mask]
         
         t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
-        # round t_range and change it to int
-        t_range=int(np.round(t_range))
-        # print('t_range:', t_range)
-        # print("Framesize:", (h[0],w[0]), "max xs:", np.max(xs), "max ys:", np.max(ys), "max ts:", np.max(ts))
-        # print("max features[:, event.X_COLUMN]:", features[:, event.X_COLUMN].max(), "max features[:, event.Y_COLUMN]:", features[:, event.Y_COLUMN].max())
-        # print(h, w)
         voxel_left = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         voxel_left = torch.from_numpy(voxel_left).float()
-        
-        
-        
 
         events_right = event.EventSequence.from_npz_files(
             list_of_filenames=list_of_events[3:],
@@ -146,18 +130,12 @@ class EventVoxel(Dataset):
         )
         events_right.reverse()
 
-
-        # our modification
-        # voxel_right = representation.to_voxel_grid(events_right, nb_of_time_bins=self.number_of_time_bins)
-        
         duration = events_right.duration()
         start_timestamp = events_right.start_time()
         features = torch.from_numpy(events_right._features)
         xs = features[:, event.X_COLUMN].int()
         ys = features[:, event.Y_COLUMN].int()
-        # polarity = features[:, event.POLARITY_COLUMN].float()
         ts = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp).float() #) * (self.number_of_time_bins - 1) / duration*10
-        # ts = ts.float()
         t_span = ts[-1] - ts[0]
         t_range = t_span / (self.number_of_time_bins+1)
         
@@ -176,12 +154,10 @@ class EventVoxel(Dataset):
         ts = ts[mask]
         
         t_range= np.array(t_range) if not isinstance(t_range, np.ndarray) else t_range
-        # round t_range and change it to int
-        t_range=int(np.round(t_range))
         voxel_right = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         voxel_right = torch.from_numpy(voxel_right).float()
-        
 
+        # Concatenate the two voxel grids
         voxel = torch.cat((voxel_left, voxel_right))
 
         images = [Image.open(pth) for pth in list_of_images]
