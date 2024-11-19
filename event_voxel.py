@@ -112,6 +112,7 @@ class EventVoxel(Dataset):
         # ts = ts.float()
         t_span = ts[-1] - ts[0]
         t_range = t_span / (self.number_of_time_bins+1)
+        print("t_range:", t_range, "t_span:", t_span, "duration:", duration, "start_timestamp:", start_timestamp)
         
         h=events_left._image_height,
         w=events_left._image_width,
@@ -126,6 +127,7 @@ class EventVoxel(Dataset):
         t_range=int(np.round(t_range))
         print('t_range:', t_range)
         print("Framesize:", (h[0],w[0]), "max xs:", np.max(xs), "max ys:", np.max(ys), "max ts:", np.max(ts))
+        print("max features[:, event.X_COLUMN]:", features[:, event.X_COLUMN].max(), "max features[:, event.Y_COLUMN]:", features[:, event.Y_COLUMN].max())
         print(h, w)
         voxel_left = calc_labits(xs=xs, ys=ys, ts=ts, framesize=(h[0],w[0]), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
         
