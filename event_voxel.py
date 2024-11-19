@@ -8,6 +8,7 @@ from PIL import Image
 
 from common import representation
 from common import event
+from labits import calc_labits
 
 
 # import random
@@ -95,7 +96,27 @@ class EventVoxel(Dataset):
             hsergb=self.is_hsergb,
         )
 
-        voxel_left = representation.to_voxel_grid(events_left, nb_of_time_bins=self.number_of_time_bins)
+        # our modification  
+        # voxel_left = representation.to_voxel_grid(events_left, nb_of_time_bins=self.number_of_time_bins)
+        
+        # Convert timestamps to [0, nb_of_time_bins] range.
+        duration = events_left.duration()
+        start_timestamp = events_left.start_time()
+        features = torch.from_numpy(events_left._features)
+        x = features[:, event.X_COLUMN]
+        y = features[:, event.Y_COLUMN]
+        polarity = features[:, event.POLARITY_COLUMN].float()
+        t = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1) / duration
+        t = t.float()
+        t_span = t[-1] - t[0]
+        t_range = t_span / (self.number_of_time_bins+1)
+        
+        h=events_left._image_height,
+        w=events_left._image_width,
+        voxel_left = calc_labits(xs=x, ys=y, ts=t, framesize=(h,w), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
+        
+        
+        
 
         events_right = event.EventSequence.from_npz_files(
             list_of_filenames=list_of_events[3:],
@@ -105,7 +126,25 @@ class EventVoxel(Dataset):
         )
         events_right.reverse()
 
-        voxel_right = representation.to_voxel_grid(events_right, nb_of_time_bins=self.number_of_time_bins)
+
+        # our modification
+        # voxel_right = representation.to_voxel_grid(events_right, nb_of_time_bins=self.number_of_time_bins)
+        
+        duration = events_right.duration()
+        start_timestamp = events_right.start_time()
+        features = torch.from_numpy(events_right._features)
+        x = features[:, event.X_COLUMN]
+        y = features[:, event.Y_COLUMN]
+        polarity = features[:, event.POLARITY_COLUMN].float()
+        t = (features[:, event.TIMESTAMP_COLUMN] - start_timestamp) * (self.number_of_time_bins - 1) / duration
+        t = t.float()
+        t_span = t[-1] - t[0]
+        t_range = t_span / (self.number_of_time_bins+1)
+        
+        h=events_right._image_height,
+        w=events_right._image_width,
+        voxel_right = calc_labits(xs=x, ys=y, ts=t, framesize=(h,w), t_range=t_range, num_bins=self.number_of_time_bins+1, norm=True)[1:]
+        
 
         voxel = torch.cat((voxel_left, voxel_right))
 
